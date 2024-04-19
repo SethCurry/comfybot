@@ -1,0 +1,14 @@
+# https://taskfile.dev
+
+version: "3"
+
+vars:
+  GREETING: Hello, World!
+
+tasks:
+  run:
+    env:
+      PYTHONPATH: "./src"
+    cmds:
+      - poetry run python ./src/comfybot.py -- -c local/comfybot.json
+    silent: true

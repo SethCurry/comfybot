@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "comfybot"
+version = "0.0.1"
+description = ""
+authors = ["Seth Curry <seth@scurry.io>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+discord-py = "^2.3.2"
+loguru = "^0.7.2"
+requests = "^2.31.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
