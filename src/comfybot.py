@@ -1,48 +1,14 @@
-import argparse
 import json
-import logging
 import typing
-from dataclasses import dataclass
 
+import cli
 import comfyapi
 
 import discord
 from loguru import logger
 
-@dataclass
-class WorkflowConfig:
-    name: str
-    file: str
-    positive_prompt_key: str
-    negative_prompt_key: str
-
-@dataclass
-class Config:
-    owner_id: int
-    comfy_url: str
-    discord_token: str
-    guild_ids: typing.List[int]
-    workflows: typing.List[WorkflowConfig]
-
-def load_config(config_path: str) -> Config:
-    with open(config_path, 'r') as fd:
-        config = json.load(fd)
-    
-    return Config(
-        owner_id=config['owner_id'],
-        comfy_url=config['comfy_url'],
-        discord_token=config['discord_token'],
-        guild_ids=config['guild_ids'],
-        workflows=[WorkflowConfig(**wf) for wf in config['workflows']])
-
-def parse_args():
-    parser = argparse.ArgumentParser(description='Comfy Discord bot')
-    parser.add_argument('-c', '--config', default="comfybot.json")
-
-    return parser.parse_args()
-
-args = parse_args()
-config = load_config(args.config)
+args = cli.parse_args()
+config = cli.load_config(args.config)
 
 comfy = comfyapi.Client(config.comfy_url)
 
@@ -70,11 +36,9 @@ def register_genai(name: str, workflow: typing.Dict[str, typing.Any], inject_pro
 
         await interaction.response.send_message(f'Workflow {name} has been queued.', ephemeral=True)
 
-        imgs = comfy.wait_for_image(resp.prompt_id)
-
         img_paths = []
 
-        for img in imgs:
+        for img in await comfy.wait_for_image(resp.prompt_id):
             data = comfy.get_image(img.filename, img.subfolder, img.image_type)
 
             img_path = f'local/output/{img.filename}'
@@ -101,6 +65,8 @@ async def on_ready():
         injector = default_workflow_injector(wf.positive_prompt_key, wf.negative_prompt_key)
 
         logger.debug("Registering workflow {}", wf.name)
+
+
         register_genai(wf.name, decoded, injector)
 
     print(f'We have logged in as {client.user}')
@@ -110,12 +76,15 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith('$sync') and message.author.id == config.owner_id:
-        for gid in config.guild_ids:
-            logger.info("Syncing guild {}", gid)
-            await tree.sync(discord.Object(id=gid))
+    if message.author.id == config.owner_id:
+        if message.content.startswith('$sync'):
+            for gid in config.guild_ids:
+                logger.info("Syncing guild {}", gid)
+                await tree.sync(guild=discord.Object(id=gid))
+        if message.content.startswith('$unload'):
+            comfy.free(unload_models=True, free_memory=True)
 
     if message.content.startswith('$hello'):
         await message.channel.send('Hello!')
 
-client.run(config.discord_token, log_handler=logging.StreamHandler(), log_level=logging.DEBUG)
+client.run(config.discord_token)

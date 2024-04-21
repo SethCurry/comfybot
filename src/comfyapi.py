@@ -34,6 +34,12 @@ class Client:
 
     return QueuePromptResponse(prompt_id=resp['prompt_id'], number=resp['number'], node_errors=resp['node_errors'])
   
+  def free(self, unload_models=False, free_memory=False):
+    requests.post(f'{self.baseurl}/free', params={
+      'unload_models': unload_models,
+      'free_memory': free_memory,
+    })
+  
   def get_image(self, filename: str, subfolder: str, img_type: str):
     resp =  requests.get(f'{self.baseurl}/view', params={
       'filename': filename,
@@ -52,7 +58,8 @@ class Client:
 
     while iters < 60:
       logger.info('Polling for image')
-      asyncio.sleep(pollIntervalSeconds)
+
+      await asyncio.sleep(pollIntervalSeconds)
 
       images: typing.List[ImageOutput] = []
 
