@@ -14,7 +14,7 @@ def command(client, tree, comfy, name: str, workflow: typing.Dict[str, typing.An
         img_paths = []
 
         for img in await comfy.wait_for_image(resp.prompt_id):
-            data = comfy.get_image(img.filename, img.subfolder, img.image_type)
+            data = await comfy.get_image(img.filename, img.subfolder, img.image_type)
 
             img_path = f'local/output/{img.filename}'
             with open(img_path, 'wb') as fd:
@@ -30,3 +30,13 @@ def command(client, tree, comfy, name: str, workflow: typing.Dict[str, typing.An
         positive_prompt='What should be in the image?',
         negative_prompt='What should not be in the image?')(callback)
     tree.command(name=name)(with_desc)
+
+
+def default_workflow_injector(positive_prompt_key: str, negative_prompt_key: str) -> comfyapi.WorkflowCustomizer:
+    def inject_prompts(workflow: typing.Dict[str, typing.Any], positive_prompt: str, negative_prompt: str) -> typing.Dict[str, typing.Any]:
+        workflow[positive_prompt_key]["inputs"]["text"] = positive_prompt
+        workflow[negative_prompt_key]["inputs"]["text"] = negative_prompt
+
+        return workflow
+
+    return inject_prompts

@@ -6,7 +6,6 @@ from enum import StrEnum
 from dataclasses import dataclass
 from loguru import logger
 
-import requests
 import aiohttp
 
 WorkflowCustomizer = typing.Callable[[typing.Dict[str, typing.Any]], typing.Dict[str, typing.Any]]
@@ -27,30 +26,34 @@ class Client:
   def __init__(self, baseurl: str):
     self.baseurl = baseurl
   
-  def queue_prompt(self, workflow: typing.Dict[str, typing.Any]) -> QueuePromptResponse:
+  async def queue_prompt(self, workflow: typing.Dict[str, typing.Any]) -> QueuePromptResponse:
     data = json.dumps({'prompt': workflow}).encode('utf-8')
 
-    resp = requests.post(f'{self.baseurl}/prompt', data=data, headers={'Content-Type': 'application/json'}).json()
-
-    return QueuePromptResponse(prompt_id=resp['prompt_id'], number=resp['number'], node_errors=resp['node_errors'])
+    async with aiohttp.ClientSession() as session:
+      async with session.post(f'{self.baseurl}/prompt', data=data, headers={'Content-Type': 'application/json'}) as req:
+        resp = await req.json()
+        return QueuePromptResponse(prompt_id=resp['prompt_id'], number=resp['number'], node_errors=resp['node_errors'])
   
-  def free(self, unload_models=False, free_memory=False):
-    requests.post(f'{self.baseurl}/free', params={
-      'unload_models': unload_models,
-      'free_memory': free_memory,
-    })
+  async def free(self, unload_models=False, free_memory=False):
+    async with aiohttp.ClientSession() as session:
+      async with session.post(f'{self.baseurl}/free', params={
+        'unload_models': unload_models,
+        'free_memory': free_memory,
+      }) as req:
+        if req.status != 200:
+          raise Exception(f'Failed to free: {await req.text()}')
   
-  def get_image(self, filename: str, subfolder: str, img_type: str):
-    resp =  requests.get(f'{self.baseurl}/view', params={
-      'filename': filename,
-      'subfolder': subfolder,
-      'type': img_type,
-    })
-
-    if resp.status_code != 200:
-      raise Exception(f'Failed to get image: {resp.text}')
-
-    return resp.content
+  async def get_image(self, filename: str, subfolder: str, img_type: str):
+    async with aiohttp.ClientSession() as session:
+      async with session.get(f'{self.baseurl}/view', params={
+        'filename': filename,
+        'subfolder': subfolder,
+        'type': img_type,
+      }) as req:
+        if req.status != 200:
+          text = await req.text()
+          raise Exception(f'Failed to get image: {text}')
+        return await req.read()
   
   async def wait_for_image(self, prompt_id: str):
     iters = 0
