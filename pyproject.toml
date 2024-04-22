@@ -10,6 +10,7 @@ python = "^3.11"
 discord-py = "^2.3.2"
 loguru = "^0.7.2"
 requests = "^2.31.0"
+aiohttp = {version = "^3.9.5", extras = ["speedups"]}
 
 
 [tool.poetry.group.dev.dependencies]

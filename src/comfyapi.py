@@ -1,6 +1,5 @@
 import asyncio
 import json
-import time
 import typing
 
 from enum import StrEnum
@@ -8,6 +7,7 @@ from dataclasses import dataclass
 from loguru import logger
 
 import requests
+import aiohttp
 
 WorkflowCustomizer = typing.Callable[[typing.Dict[str, typing.Any]], typing.Dict[str, typing.Any]]
 
@@ -56,47 +56,49 @@ class Client:
     iters = 0
     pollIntervalSeconds = 5
 
-    while iters < 60:
-      logger.info('Polling for image')
+    async with aiohttp.ClientSession() as session:
+      while iters < 60:
+        logger.info('Polling for image')
 
-      await asyncio.sleep(pollIntervalSeconds)
+        await asyncio.sleep(pollIntervalSeconds)
 
-      images: typing.List[ImageOutput] = []
+        images: typing.List[ImageOutput] = []
 
-      iters += 1
+        iters += 1
 
-      resp = requests.get(f'{self.baseurl}/history/{prompt_id}').json()
+        async with session.get(f'{self.baseurl}/history/{prompt_id}') as req:
+          resp = await req.json()
 
-      if prompt_id not in resp:
-        logger.debug('Prompt not in response')
-        continue
-      resp = resp[prompt_id]
+          if prompt_id not in resp:
+            logger.debug('Prompt not in response')
+            continue
+          resp = resp[prompt_id]
 
-      logger.debug(resp)
+          logger.debug(resp)
 
-      if 'status' not in resp:
-        logger.debug('No status in response')
-        continue
+          if 'status' not in resp:
+            logger.debug('No status in response')
+            continue
 
-      if resp['status']['completed'] != True:
-        logger.debug('Prompt not completed')
-        continue
+          if resp['status']['completed'] != True:
+            logger.debug('Prompt not completed')
+            continue
 
-      if 'outputs' not in resp:
-        logger.debug('No outputs in response')
-        continue
+          if 'outputs' not in resp:
+            logger.debug('No outputs in response')
+            continue
 
-      outputs = resp['outputs']
+          outputs = resp['outputs']
 
-      for output in outputs.values():
-        if 'images' not in output:
-          logger.debug('No images in output')
-          continue
+          for output in outputs.values():
+            if 'images' not in output:
+              logger.debug('No images in output')
+              continue
 
-        for img in output['images']:
-          images.append(ImageOutput(filename=img['filename'], subfolder=img['subfolder'], image_type=img['type']))
+            for img in output['images']:
+              images.append(ImageOutput(filename=img['filename'], subfolder=img['subfolder'], image_type=img['type']))
       
-      if len(images) > 0:
-        return images
+          if len(images) > 0:
+            return images
 
     raise Exception('Timed out waiting for image')  
