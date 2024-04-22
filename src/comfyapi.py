@@ -87,7 +87,7 @@ class Client:
 
           logger.debug(resp)
 
-          if not __is_prompt_done(resp):
+          if not is_prompt_done(resp):
             logger.debug('prompt not done')
             continue
 
