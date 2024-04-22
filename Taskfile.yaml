@@ -4,15 +4,16 @@ version: "3"
 
 vars:
   GREETING: Hello, World!
+env:
+  PYTHONPATH: "./src"
 
 tasks:
   run:
-    env:
-      PYTHONPATH: "./src"
     cmds:
       - poetry run python ./src/comfybot.py -- -c local/comfybot.json
   lint:
-    env:
-      PYTHONPATH: "./src"
     cmds:
       - poetry run ruff check src
+  test:
+    cmds:
+      - poetry run pytest ./src

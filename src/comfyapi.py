@@ -2,7 +2,6 @@ import asyncio
 import json
 import typing
 
-from enum import StrEnum
 from dataclasses import dataclass
 from loguru import logger
 
@@ -21,6 +20,15 @@ class ImageOutput:
   filename: str
   subfolder: str
   image_type: str
+
+def is_prompt_done(resp: typing.Dict[str, typing.Any]) -> bool:
+  if 'status' not in resp:
+    return False
+
+  if 'completed' not in resp['status']:
+    return False
+
+  return resp['status']['completed']
 
 class Client:
   def __init__(self, baseurl: str):
@@ -79,12 +87,8 @@ class Client:
 
           logger.debug(resp)
 
-          if 'status' not in resp:
-            logger.debug('No status in response')
-            continue
-
-          if resp['status']['completed'] != True:
-            logger.debug('Prompt not completed')
+          if not __is_prompt_done(resp):
+            logger.debug('prompt not done')
             continue
 
           if 'outputs' not in resp:
