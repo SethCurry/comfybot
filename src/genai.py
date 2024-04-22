@@ -1,8 +1,9 @@
 import typing
 
+import comfyapi
 import discord
 
-from loguru import logger
+from loguru import logger, Logger
 
 def command(client, tree, comfy, name: str, workflow: typing.Dict[str, typing.Any], inject_prompts: comfyapi.WorkflowCustomizer):
     async def callback(interaction: discord.Interaction, positive_prompt: str, negative_prompt: str):
@@ -40,3 +41,53 @@ def default_workflow_injector(positive_prompt_key: str, negative_prompt_key: str
         return workflow
 
     return inject_prompts
+
+class Bot:
+    def __init__(
+            self,
+            discord_client: discord.Client,
+            comfy_client: comfyapi.Client,
+            command_tree: discord.app_commands.CommandTree = None,
+            owner_id: int = None,
+            guild_ids: typing.List[int] = list,
+            bot_logger: Logger = None):
+        self.__discord_client = discord_client
+        self.__owner_id = owner_id
+        self.__guild_ids = guild_ids
+
+        if bot_logger is None:
+            self.__logger = logger
+        else:
+            self.__logger = bot_logger
+
+        if command_tree is None:
+            self.__discord_tree = discord.app_commands.CommandTree(discord_client)
+        else:
+            self.__discord_tree = command_tree
+
+        self.__comfy_client = comfy_client
+
+        self.__discord_client.event(self.on_ready)
+        self.__discord_client.event(self.on_message)
+    
+    async def on_ready(self):
+        self.__logger.info("logged in as {}", self.__discord_client.user)
+
+    async def on_message(self, message):
+        if message.author == self.__discord_client.user:
+            self.__logger.info("ignoring message from self")
+            return
+
+        if message.author.id == self.__owner_id:
+            if message.content.startswith('$sync'):
+                for gid in self.__guild_ids:
+                    self.__logger.info("syncing guild {}", gid)
+                    await self.__discord_tree.sync(guild=discord.Object(id=gid))
+            if message.content.startswith('$unload'):
+                self.__comfy_client.free(unload_models=True, free_memory=True)
+
+    def register_prompt(self, name: str, workflow: typing.Dict[str, typing.Any], inject_prompts: comfyapi.WorkflowCustomizer):
+        command(self.__discord_client, self.__discord_tree, self.__comfy_client, name, workflow, inject_prompts)
+
+    def run(self, token: str):
+        self.__discord_client.run(token)
