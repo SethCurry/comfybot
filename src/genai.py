@@ -8,6 +8,7 @@ import discord
 import loguru
 logger = loguru.logger
 
+
 def command(client, tree, comfy, name: str, workflow: typing.Dict[str, typing.Any], inject_prompts: comfyapi.WorkflowCustomizer):
     async def callback(interaction: discord.Interaction, positive_prompt: str, negative_prompt: str):
         injected_workflow = inject_prompts(workflow, positive_prompt, negative_prompt)
@@ -83,9 +84,14 @@ class Bot:
 
         if message.author.id == self.__owner_id:
             if message.content.startswith('$sync'):
+                self.__logger.info("syncing commands")
+
                 for gid in self.__guild_ids:
-                    self.__logger.info("syncing guild {}", gid)
-                    await self.__discord_tree.sync(guild=discord.Object(id=gid))
+                    synced_commands = await self.__discord_tree.sync(guild=discord.Object(id=gid))
+
+                    for i in synced_commands:
+                        self.__logger.info("synced command {} for guild {}", i.name, gid)
+
             if message.content.startswith('$unload'):
                 self.__comfy_client.free(unload_models=True, free_memory=True)
 
