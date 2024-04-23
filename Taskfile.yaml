@@ -16,4 +16,4 @@ tasks:
       - poetry run ruff check src
   test:
     cmds:
-      - poetry run pytest ./src
+      - poetry run pytest .

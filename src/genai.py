@@ -1,16 +1,19 @@
+from __future__ import annotations
+
 import typing
 
 import comfyapi
 import discord
 
-from loguru import logger, Logger
+import loguru
+logger = loguru.logger
 
 def command(client, tree, comfy, name: str, workflow: typing.Dict[str, typing.Any], inject_prompts: comfyapi.WorkflowCustomizer):
     async def callback(interaction: discord.Interaction, positive_prompt: str, negative_prompt: str):
         injected_workflow = inject_prompts(workflow, positive_prompt, negative_prompt)
-        resp = comfy.queue_prompt(injected_workflow)
+        resp = await comfy.queue_prompt(injected_workflow)
 
-        await interaction.response.send_message(f'Workflow {name} has been queued.', ephemeral=True)
+        await interaction.response.send_message(f'Workflow {name} has been queued.')
 
         img_paths = []
 
@@ -50,7 +53,7 @@ class Bot:
             command_tree: discord.app_commands.CommandTree = None,
             owner_id: int = None,
             guild_ids: typing.List[int] = list,
-            bot_logger: Logger = None):
+            bot_logger: loguru.Logger = None):
         self.__discord_client = discord_client
         self.__owner_id = owner_id
         self.__guild_ids = guild_ids
